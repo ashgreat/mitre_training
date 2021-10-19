@@ -1,0 +1,270 @@
+---
+title: "Data Wrangling - Part II"
+author: "Ashwin Malshe"
+date: "10/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Read the data from csv
+
+```{r }
+d1 = read_csv(here::here("tech_co_cstat.csv"))
+```
+
+
+## Summarizing with and without groups
+
+Often we want to create summaries of the raw data. In fact, for most reporting we want to use summaries rather than individual observations. For example, for out sample, we may want to know the average and median sales for the sample. But instead of returning individual values of these summary statistics, we may want a data frame with summaries. This is similar to the output from `describe()` function from `sych` package, which returned a data frame.
+
+Using `summarize()` function from `dplyr`, we can easily create a summarized data frame.
+
+```{r}
+summarize(d1,
+          sale_mean = mean(sale, na.rm = TRUE),
+          sale_median = median(sale, na.rm = TRUE),
+          sale_sd = sd(sale, na.rm = TRUE))
+```
+
+
+How to get a summary statistic for multiple varaibles?
+
+You could write out each variable as shown in the above code chunk for each variable and statistic. Alternatively, you can use more advanced methods in `summarize` using `across()`
+
+```{r}
+summarize(d1, 
+          across(c(sale, at, cogs), mean, na.rm = TRUE)
+          )
+```
+
+Multiple variables and multiple statistics
+
+```{r}
+summarize(d1, 
+          across(c(sale, at, cogs), list(mean = mean, med = median, sd = sd), na.rm = TRUE)
+          )
+```
+
+This is equivalent to:
+
+```{r}
+summarize(d1, 
+          across(c(sale, at, cogs), list(mean = ~mean(., na.rm = TRUE), 
+                                         med = ~median(., na.rm = TRUE), 
+                                         sd = ~sd(., na.rm = TRUE)))
+          )
+```
+
+The advantage of above syntax is that you can now specify functions that may not have `na.rm` argument or some other unique arguments not application for other functions in the same list.
+
+### Summarizing on groups
+
+Imagine that we want to find out average sales, assets, and profits for different companies in our data. For this, we can create subsets of the data set using `group_by()` and then get summaries for only these subsets.
+
+```{r}
+d1_1 = group_by(d1, conm)
+```
+
+```{r}
+summarize(d1_1,
+          across(c(sale, at, oibdp), mean, na.rm = TRUE))
+```
+
+**Note**
+The resulting data frame is technically a "grouped" data set. The grouping doesn't physically change the appearance of the data frame. Instead, it creates an internal identifier that tells R that the data frame should be treated as a collection of data frames. Can we remove this grouping before next operations?
+
+Solution specific to `summarize`
+
+```{r}
+summarize(d1_1,
+          across(c(sale, at, oibdp), mean, na.rm = TRUE),
+          .groups = "drop") # <-- note this argument
+```
+
+OR we can ungroup it in general using
+
+```{r}
+ungroup(summarize(d1_1,
+          across(c(sale, at, oibdp), mean, na.rm = TRUE)))
+```
+
+
+## Pipes
+
+The latest version of R has a native pipe. But for the past several years, we have been using pipe operators from `magrittr` package, which is now a part of the tidyverse.
+
+A pipe operator `%>%` allows us to nest multiple function without creating intermediate data frame. Furthermore, it improves readability of the code.
+
+The keyboard shortcut for getting the pipe is Shift + Control + M on Windows and Shift + Command + M on Mac.
+
+Consider a situation where you want to perform the following steps:
+
+1. Select these variables: `conm`, `fyear`, `sale`, `oibdp`
+2. Keep only Facebook and Tesla rows
+3. Keep only the observations with non-missing and positive sales
+4. Calculate profit margin as a ratio of profit and sales
+5. Group by conm
+6. Summarize to get median sale, profit, and profit margin
+
+
+Here is how you can do it by using multiple intermediate data frame without overwriting:
+
+```{r}
+d1_2 = select(d1, conm, fyear, sale, oibdp)
+d1_3 = filter(d1_2, conm %in% c("FACEBOOK INC", "TESLA INC"))
+d1_4 = filter(d1_3, sale > 0)
+d1_5 = mutate(d1_4, profit_margin = oibdp / sale)
+d1_6 = group_by(d1_5, conm)
+d1_7 = summarise(d1_6, across(c(sale, oibdp, profit_margin), median))
+d1_7
+```
+
+
+*You can avoid creating intermediate data frames by overwriting `d1_2` again and again. However, this is considered as a bad practice as it is error-prone.*
+
+The intermediate data frame clutter your environment and help exhaust memory. The pipe operator solves this issue. 
+
+Note that all the `dplyr` functions we used so far use a data frame as input and also output a data frame. This is crucial for the working on the pipe.
+
+`select(d1, conm, fyear, sale, oibdp)` can be split into two components: `d1` is the input data frame and `select(., conm, fyear, sale, oibdp)` is the remaining function and the arguments. Note I have put a `.` in place of `d1` inside this function. It is not required but in this case helps understand what's going on.
+
+Pipe allows us to use connect these two components as follows:
+
+```{r}
+d1 %>% select(., conm, fyear, sale, oibdp)
+```
+
+Here, `d1` is an incoming input data frame in the pipeline. When it arrives at %>% , it can pass through it and gets plugged into the first argument of the function `select()`. 
+
+*It will work even when there is no placeholder `.` inside `select()`.*
+
+```{r}
+d1 %>% 
+  select(., conm, fyear, sale, oibdp) %>% 
+  filter(., conm %in% c("FACEBOOK INC", "TESLA INC"))
+```
+
+In the above chunk, we piped the output of `select()` function, which is a data frame, into `filter()`. Thus, we eliminated an intermediate data frame!
+
+We can now create a long pipeline:
+
+
+```{r}
+d1_8 = d1 %>% 
+  select(., conm, fyear, sale, oibdp) %>% 
+  filter(., conm %in% c("FACEBOOK INC", "TESLA INC")) %>% 
+  filter(., sale > 0) %>% 
+  mutate(., profit_margin = oibdp / sale) %>% 
+  group_by(., conm) %>% 
+  summarise(., across(c(sale, oibdp, profit_margin), median))
+
+d1_8
+```
+
+As the `.` is not required, we can simplify the code as follows:
+
+```{r}
+d1_9 = d1 %>% 
+  select(conm, fyear, sale, oibdp) %>% 
+  filter(conm %in% c("FACEBOOK INC", "TESLA INC")) %>% 
+  filter(sale > 0) %>% 
+  mutate(profit_margin = oibdp / sale) %>% 
+  group_by(conm) %>% 
+  summarise(across(c(sale, oibdp, profit_margin), median))
+
+d1_9
+```
+
+But if it helps you improve the readability of the code, I recommend keeping the period at the beginning of the functions.
+
+
+## Joining data sets.
+
+Joining data sets is quite common in data science. There are broadly two main ways to join data frames.
+
+### Stacking
+
+Stacking data frames is essentially joining data frames by rows. Thus, we are putting a data frame on top of another data frame to get one single data frame. The essential condition for this to work is that the number of columns and the class of the columns in the two data frames are identical.
+
+For instance, suppose we have these two data frames:
+
+```{r}
+d1_apple = filter(d1, conm == "AAPLE INC")
+d1_fb = filter(d1, conm == "FACEBOOK INC")
+```
+
+Now you want to stack them so that you have a single data frame:
+
+```{r}
+d1_apple_fb = rbind(d1_apple, d1_fb)
+```
+
+Now consider a third data frame:
+
+```{r}
+d1_tesla = filter(d1, conm == "TESLA INC") %>% 
+  select(conm, sale, at)
+```
+
+This data frame has only 3 columns. Can we stack this with any of the other two data frames?
+
+```{r}
+d1_fb_tesla = rbind(d1_fb, d1_tesla)
+```
+
+Nope!
+
+### Joining by columns
+
+This is a much more common application where want to merge two data sets side-by-side by columns.
+
+`dplyr` provides a set of `*_join()` functions inspired by SQL. The most commonly used joins are `inner_join()`, `left_join()` and `right_join()`.
+
+
+Let's create a summarized data frame with means of sale broken by companies. But we will include only 5 companies:
+
+```{r}
+d1_sum = d1 %>% 
+  filter(tic %in% c("AAPL", "AMZN", "FB", "TSLA", "MSFT")) %>% 
+  group_by(conm) %>% 
+  summarize(sale_mean = mean(sale, na.rm = TRUE))
+
+d1_sum
+```
+
+
+Now merge this summarize data frame into the original `d1` data frame. For joining, we need to have at least one common variable, also known as a "key". In this case, `conm` is the common variable.
+
+I will show you how `inner_join` and `left_join` works
+
+`inner_join` matches the key values in the two data frames and keeps only those observations where the key is present in both the data frames.
+
+```{r}
+d2 = inner_join(d1, d1_sum, by = "conm")
+```
+
+```{r}
+select(d2, conm, sale, sale_mean)
+```
+
+As `d1_sum` has observations only for five companies, the resulting data frame `d2` has fewer observations than `d1`.
+
+What if you wanted to keep the unmatched observations? That's where you will use `left_join`:
+
+```{r}
+d3 = left_join(d1, d1_sum, by = "conm")
+```
+
+
+```{r}
+select(d3, conm, sale, sale_mean) %>% 
+  filter(conm == "TWITTER INC")
+```
+
+
+
+

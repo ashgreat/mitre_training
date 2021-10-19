@@ -1,0 +1,186 @@
+---
+title: "Reading and exploring data frames"
+author: "Ashwin Malshe"
+date: "10/18/2021"
+output: html_document
+---
+
+This document format is called "Rmarkdown". It is a powerful format that combines markdown and R. It allows you to output in various formats such as HTML, PDF, TEX, Word, Powerpoint, etc.
+
+R code is written inside these code chunks like this below. The keyboard shortcut to add a code chunk is Control + Alt + I for Windows and Command + Option + I for Mac.
+
+The first set is labeled "setup" and it has a special meaning. The setup chunk will be executed first before executing any other code chunks in this file. Therefore, it is prudent to load packages and read data sets in the setup chunk. Also, use it to specify global document options.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) # I will explain this later.
+
+# Tidyverse is a collection of R packages.
+library(tidyverse)
+
+```
+
+
+(Read more about tidyverse here: http://tidyverse.org)
+
+## Reading tablualr data in R
+
+We will read a `csv` file into R. Base R provides an easy function `read.csv()` for reading csv files. I will use a more advanced function `read_csv()` from `readr` package.
+
+
+```{r }
+d1 = read_csv(here::here("tech_co_cstat.csv"))
+```
+
+Note the use of `here` package and `here` function. This has one purpose - identify and point to the current working directory. This makes locating your files easy and error free. This will also allow you to use this code on any computer as long as all files reside in the same parent folder. Note the total absence of any absolute file path. `here` will learn the file path on the current computer and append that before the file name.
+
+It has one purpose...something like this:
+
+![](https://www.youtube.com/watch?v=X7HmltUWXgs)
+
+
+### Dimensions of the data frame
+
+```{r}
+dim(d1)
+```
+
+The data frame has 109 observations (rows) and 69 variables (columns). 
+
+### Names of the variables
+
+```{r}
+names(d1)
+```
+
+
+The names are strange and we don't have any easy way of knowing what they mean. Usually, we include a data dictionary or a meta data file that will include this information. Another way to include this information is to label each variable with description. It's not possible in a CSV or an Excel file but statistical files created by SAS, Stata, SPSS, and R can include labels.
+
+
+### Reading a Stata file
+
+```{r}
+d2 = haven::read_dta(here::here("tech_co_cstat.dta"))
+```
+
+This Stata data set has labels, which we can read.
+
+```{r}
+attributes(d2$at)
+```
+
+We refer to columns in R by using a `$` sign.
+
+*Note that d1 and d2 contain the same data but they are not identical because d2 also has meta data.*
+
+I have saved all the labels separately in a data frame `labels_dt.rds`. Note the extension. This is an R object.
+
+```{r}
+readRDS(here::here("labels_dt.rds")) %>% 
+  knitr::kable() # This will create a nice table in the HTML document.
+```
+
+
+## Explore the data
+
+### Variable types
+
+A data frame is made up of atomic vectors of same length. The vectors can be of different types (classes) but their length is the same. It's like taking a bunch of colorful plastic straws and laying them on a flat surface side by side.
+
+We can find the class of each variable by using `class()` function
+
+```{r}
+class(d1$gvkey)
+```
+
+
+```{r}
+class(d1$datadate)
+```
+
+```{r}
+class(d1$fyear)
+```
+
+```{r}
+class(d1$conm)
+```
+
+Although this data set doesn't have them, R has logical and complex vectors as well. However, complex vectors are almost never used in data science.
+
+Logical vectors are just a special type of integer vectors with only 0s and 1s. The 0s are labeled `FALSE` and 1s are labeled `TRUE`, which are special values in R and can't be used for anything else.
+
+### Summary statistics
+
+For character variables, we can at the most get the frequency distribution using `table()` function.
+
+```{r}
+table(d1$conm)
+```
+
+`table` returns an atomic "named" vector where each element is named. The vector is a numeric vector with frequencies of occurrence of each company name in the data set. 
+
+There is a handy function called `count()` from the package `dplyr` (part of Tidyverse) which can output the frequency distribution as a data frame rather than a vector.
+
+```{r}
+count(d1, conm)
+```
+
+Note the syntax of this function. The first argument is the data frame and the second argument is the variable for which we want to output frequencies or counts. **All the packages in `tidyverse` follow the convention that the first argument is always a data frame.** This is an important thing to remember as I will show you a pipe operator in R to make the code more readable.
+
+We can also find counts of a numeric vector. It is better to use an integer vector for this.
+
+```{r}
+count(d1, fyear)
+```
+
+`fyear` is fiscal year.
+
+For numeric variables, we can meaningfully calculate mean, median, standard deviation, and many other summary statistics. 
+
+```{r}
+mean(d1$sale)
+median(d1$sale)
+sd(d1$sale)
+```
+
+In R any missing values are labeled `NA`, i.e., Not Available. Why do we have so many missing values?
+
+In R, the default for the summary statistic is to NOT ignore missing values. If your variable has a missing value, ideally you want to know why. Thus, R will return an NA even with just 1 missing value in your variable. We can override this by setting `rm.na = TRUE`
+
+```{r}
+mean(d1$sale, na.rm = TRUE)
+median(d1$sale, na.rm = TRUE)
+sd(d1$sale, na.rm = TRUE)
+```
+
+We can also use `summary()` function to get a quick summary:
+
+```{r}
+summary(d1$sale)
+```
+
+In this case, R uses `na.rm = TRUE` by default and shows you that there are 2 NAs in the variable. But `summary()` doesn't show standard deviation.
+
+I prefer to use a much more powerful function from `psych` package, which outputs many summary statistics. The best part for me is that the output is a data frame!
+
+Let's look at the output of summary from the first 10 columns
+```{r}
+psych::describe(d1[1:10])
+```
+
+Now we see warnings and more reserved terms such as `NaN` (Not a Number) and `Inf` (Infinity). 
+
+Let's look at some meaningful variables:
+
+```{r}
+psych::describe(d1[c("sale", "at", "oibdp", "cogs", "che", "emp")])
+```
+
+
+
+
+
+
+
+
+  

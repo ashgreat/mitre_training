@@ -1,0 +1,204 @@
+---
+title: "Data Wrangling - Part I"
+author: "Ashwin Malshe"
+date: "10/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(psych)
+```
+
+Read the data from csv
+
+```{r }
+d1 = read_csv(here::here("tech_co_cstat.csv"))
+```
+
+## Column operations
+
+```{r}
+names(d1)
+```
+
+### Selecting variables (columns)
+
+
+Base R selection of variables is mostly based on the index of the columns.
+
+For example, if we want to keep only the first 10 columns, we can get them using `d1[1:10]`
+
+In recent years, tidyverse packages have gained prominence for their data wrangling capabilities. The most versatile among these packages is `dplyr`, which we will use now on.
+
+The syntax to return the first 10 columns is as follows:
+```{r}
+select(d1, 1:10)
+```
+
+Note that the first argument is the data frame, which is standard across almost all the tidyverse functions. The second argument is the list of columns.
+
+We can use column names to select variables.
+
+Previously we had used base R way to keep the following variables and summarized them
+
+```{r}
+psych::describe(d1[c("sale", "at", "oibdp", "cogs", "che", "emp")])
+```
+
+
+`dplyr` way of writing this using `select()` is as follows:
+
+```{r}
+psych::describe(select(d1, sale, at, oibdp, cogs, che, emp))
+```
+
+
+Note that we don't have to use a `c()` function to wrap the list of names. Also, we don't have to quote the variable names.
+
+### Selection based on a condition
+
+Sometimes we need variables based on specific conditions. Such conditions may pertain to the class of the variable or the variable names.
+
+Selection based on the class
+
+For example, it makes sense to use only numeric variables to summarize them. There are two ways to achieve this.
+
+1. Using `select_if()` function
+
+```{r}
+describe(select_if(d1, is.numeric))
+```
+
+
+2. Using a combination of `select` and `where` functions.
+
+```{r}
+describe(select(d1, where(is.numeric)))
+```
+
+
+Selection based on the names of the variables
+
+`dplyr` has a few helper functions such as `starts_with()`, `ends_with()` and `contains()` that can be used to select variables based on the character patterns in their names.
+
+For example, if you want to select only the variables that start with letter "s", you can use the following code:
+
+```{r}
+select(d1, starts_with("s"))
+```
+
+Try other two helper functions.
+
+Where do you think these will be useful?
+
+## Selecting observations (rows)
+
+### Selecing rows based on the index
+
+In base R, we can select rows or columns using the index. For example, if we want first 10 rows and first 3 columns, we can just use this:
+
+```{r}
+d1[1:10, 1:3]
+```
+
+`dplyr` way of getting the observations based on the index is by using `slice` function.
+
+```{r}
+slice(d1, 1:10)
+```
+
+However, `slice` doesn't allow selecting columns. Thus, `dplyr` has separate functions for row and column operations.
+
+### Filtering data frame based on values of a variable
+
+Sometimes we need to subset data sets based on values of another variable. For instance, in this data set, suppose we want to extract observations for Apple, we can do it as follows:
+
+```{r}
+filter(d1, conm == "APPLE INC")
+```
+
+Note that here the value of `conm` used to filter is exactly how it shows up in the data. For instance, if you make a spelling mistake or change the case, it won't return any observations.
+
+```{r}
+filter(d1, conm == "Apple")
+```
+
+We can use numeric variables for filtering as well:
+
+```{r}
+filter(d1, sale >= 50000)
+```
+
+Use multiple variables or conditions for filtering:
+
+```{r}
+filter(d1, sale >= 50000 & oibdp <= 10000)
+```
+
+
+## Creating new variables
+
+It's quite common to create new variables in data science. We can use a number of R functions to create or transform variables.
+
+`dplyr` uses `mutate` function for variable creation. Importantly, `mutate()` performs columnwise operation by default. 
+
+Let's create a new variable `logsale` which is a log of `sale` and save this into a new copy of d1.
+
+```{r}
+d1_1 = mutate(d1, logsale = log(sale))
+```
+
+```{r}
+head(d1_1$logsale)
+```
+
+
+Note that, when we calculated log without first checking whether the variable has only positive values. Let's include a condition here to do the check. We will overwrite `d1_1`
+
+```{r}
+d1_1 = mutate(d1, logsale = ifelse(sale > 0, log(sale), NA))
+```
+
+Note the structure of `ifelse()` function. This is similar to the `if()` function in Excel. The first argument is the condition, the second argument is the output if the condition is true and the third argument is the output if the condition false.
+
+
+### Replacing missing values using mutate
+
+Missing value imputation is a big area in data science. Once we have the replacement values, we can substitute NAs in a variable by the new values. 
+
+Let's take a simple example. In the data set, `xrd` reports R&D expenses. If this is missing, commonly researchers assume that the company did not spend anything on R&D. Thus, we want to replace NAs in `xrd` by 0.
+
+We can acheive it in two ways at least:
+
+```{r}
+d1_1 = mutate(d1, xrd_new1 = ifelse(is.na(xrd), 0, xrd))
+```
+
+Here we are used `is.na()` function from base R. 
+
+
+The other way is to use `replace_na()` function from `dplyr`. 
+
+```{r}
+d1_1 = mutate(d1_1, xrd_new2 = replace_na(xrd, 0))
+```
+
+
+Let's print our original variable and new variables
+
+```{r}
+select(d1_1, xrd, xrd_new1, xrd_new2)
+```
+
+
+```{r}
+filter(select(d1_1, xrd, xrd_new1, xrd_new2), is.na(xrd))
+```
+
+
+
+
+
+

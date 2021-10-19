@@ -1,102 +1,102 @@
 ---
-title: "Homework 0"
-author: "Write your name"
-date: "October 2020"
+title: "Homework 1"
+author: "Your name and abc123"
+date: "07 September 2021"
 output: html_document
 ---
 
 
 ```{r setup, include=FALSE}
+options(pillar.sigfig = 3)
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-This homework uses `txhousing` dataset from `ggplot2` package, which is a part of the `tidyverse`. Additionally, it uses Consumer Price Index (CPI) dataset, which I downloaded from the BLS website (https://data.bls.gov/timeseries/CUUR0000SA0) and cleaned. I will provide the code for cleaning CPI data in the solution to this homework.
-
-`txhousing` consists of the following variables:
+This homework uses `tech_co_cstat_dta.zip` which we used in weeks 2 and 3. The data set consists of the following variables:
 
 ```{r}
-names(txhousing)
+d1 <- haven::read_dta("tech_co_cstat_dta.zip")
+names(d1)
+```
+Read `tech_co_cstat_dta.zip` into your R session using `read_dta()` function from `haven` package. Store the resulting object in `d1`.
+
+```{r}
+d1 <- haven::read_dta("tech_co_cstat_dta.zip")
 ```
 
-Before you start working on this homework, study the variables in `txhousing` as well as the structure of the dataset by typing this command in your console.
+
+Before you start working on this homework, study the variables in `tech_co_cstat_dta.zip` as well as the structure of the dataset by typing these commands in your console:
 
 ```{r echo = TRUE, eval=FALSE}
-help(txhousing)
+psych::describe(d1)
+dplyr::glimpse(d1)
 ```
 
 Take a peek at the data by typing:
 
 ```{r echo=TRUE, eval=FALSE}
-head(txhousing)
+head(d1)
+```
+
+Read the attributes of any variable from this data set using `attributes` function. For example, the attributes of `gvkey` can be printed using:
+
+```{r echo=TRUE}
+attributes(d1$gvkey)
 ```
 
 
-Save the CPI dataset in your project folder where you have also saved this homework file. Read the CPI dataset into this session. It consists of the following columns:
+Finally, before you begin, include only the rows with `sale > 0`.
 
-```{r}
-cpi <- #read your rds file here
-
-names(cpi)
+```{r echo=TRUE}
+d2 <- filter(d1, sale > 0)
 ```
 
-Take a look at the first few observations by using `head()` function. 
 
+<p style="border:3px; border-style:solid; border-color:#b50000; padding: 1em;">This homework consists of 8 questions. Q1 carries 1 point. Q2 through Q8 carry two points each. We use `d2` as the initial input. Your objective is to reproduce the output shown in the HTML file for Q1 through Q9. </p>
 
-<p style="border:3px; border-style:solid; border-color:#b50000; padding: 1em;">This homework consists of 10 questions and each carries one point. Your objective is to reproduce the output shown in the HTML file for Q1 through Q9. For Q10 just print the name of the city and the value.</p>
-
-Dollar values over a long time series make comparison difficult due to inflation. \$100 in January 2000 is worth \$154 in July 2020. In `txhousing`, there are two variables&mdash;`volume` and `median`&mdash;which are specified in unadjusted USD. Questions 1 to 4 are designed to inflation-adjust these two variables to July 2020 dollars.
 
 ### Q1
 
-Create a new data frame `month_map` with 12 rows and 2 columns titled `month_name` and `month`. `month_name` in `month_map` should have only the unique values from `month_name` column in CPI data frame. `month` column should contain the month numbers from 1 to 12.
-
-Try to not type out this data frame manually and instead try to do it algorithmically. This is how it will look:
+Print a data frame with the medians of `cogs`, `emp`, and `xrd`. 
 
 ```{r}
-
-
 
 ```
 
 ### Q2
 
-Merge `month_map` to the CPI data frame. Explicitly identify the common key variable on which you will perform the merge. Store the resulting merged data frame as `cpi_merge`. **Print the first six rows.**
+Print a data frame with the means of `sale`, `oibdp`, and `xrd` for Apple, Facebook, and Tesla. For this, you will need to follow these steps:
 
-Here are the first six rows of `cpi_merge`:
+1. Filter only the observations pertaining to Apple, Facebook, and Tesla
+2. Group by `conm`
+3. Summarize across `sale`, `oibdp`, and `xrd` to get their means
+4. Output it as data frame by using `as.data.frame()` function.
 
 ```{r}
-
-
 
 ```
 
 ### Q3
 
-We want to add a column to the `txhousing` data frame that holds the information on the CPI. Rather than altering `txhousing`, create a new data frame `housing` by merging `txhousing` and `cpi_merge`. The common keys for merging are `year` and `month`. Note that the resulting data frame is essentially `txhousing` with *just one more column* of CPI. 
+Round all the numeric variables in the above data frame to 1 decimal place. Output as a data frame using `as.data.frame()` function.
 
-Here are the top six rows of `housing`:
+For rounding, you will have to use `mutate`, `across`, and `where` functions from `dplyr` package. Check https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-colwise/ for more information.
 
 ```{r}
-
-
-
 
 ```
 
 ### Q4
 
-Modify `housing` by adding these new columns:
+Many advertising values are missing. The missing code in R is `NA`. We can get the total number of missing values for advertising quite easily by running the following function:
 
-1. `cpi_latest` -  Contains the CPI of July 2020. This entire column will have the same value appearing in each cell.
+```{r echo=TRUE}
+sum(is.na(d2$xad))
+```
 
-2. `multiplier` - Ratio of `cpi_latest` and `cpi`
+In the finance literature, a common (but incorrect) practice is to assume that the missing advertising is 0. We will use this adjustment to `xad` and create a new variable `adv` and save it in a new object `d3`. 
 
-3. `volume_adj` - Adjusted volume as a product of `volume` and `multiplier`
-
-4. `median_adj` - Adjusted median sale price as a product of `median` and `multiplier`
-
-Here I show the top six rows with only a select few columns to help you ensure your output resembles this:
+The first six values of `d3` when `xad` is NA are as follows:
 
 ```{r}
 
@@ -104,21 +104,11 @@ Here I show the top six rows with only a select few columns to help you ensure y
 
 ### Q5
 
-Using `housing` from Q4, create a new data frame `housing_sum1` with this information for each `city` *across all years and months*:
+Using `d3`, create the following variables and print first 8 rows for Netflix and the new columns along with `conm` and `datadate`:
 
-1. Maximum and minimum `volume_adj`
-2. Maximum and minimum `median_adj` sale price
-
-*Hint: If you group by `city`, you will get the summary across all the years and months. *
-
-Merge `housing_sum1` into `housing` by `city` and save it as a new dataset `housing_1`.
-
-Here I show first six rows of `housing_1` and only a select columns:
-
-```{r}
-
-```
-Here I show *last* six rows of `housing_1` and only a select columns:
+1. Return on assets (`roa`) = `oibdp` / `at`
+2. Free cash flow (`fcf`) = `oancf` / `che`
+3. Strategic emphasis (`strat_emph`) = (`adv` - `xrd`) / `at`
 
 ```{r}
 
@@ -126,19 +116,11 @@ Here I show *last* six rows of `housing_1` and only a select columns:
 
 ### Q6
 
-1. Using `housing_1` from Q5, create a new data frame `housing_min` which will retain only the rows of `housing_1` where `volume_adj` of a `city` was equal to the minimum adjusted volume.
+You want to know how many profitable years each of the sample company experienced. For this follow these steps:
 
-Here I show first six rows of `housing_min` and only a select columns:
-
-```{r}
-
-
-```
-
-
-2. Using `housing_1` from Q5, create a new data frame `housing_max` which will retain only the rows of `housing_1` where `median_adj` of a `city` was equal to the maximum adjusted median sale price.
-
-Here I show first six rows of `housing_max` and only a select columns:
+1. Create an indicator variable (dummy variable) called `profit_ind` such that when `oibdp > 0` this variable is 1. Otherwise it is 0.
+2. Group by company names
+3. Summarize `profit_ind` by taking its sum. Also, get the total number of observations for each company.
 
 ```{r}
 
@@ -146,78 +128,36 @@ Here I show first six rows of `housing_max` and only a select columns:
 
 ### Q7
 
-Using `housing_1` from Q5, create a new data frame `housing_sum2` with this information for each `year` and `month` pair *across all cities*:
+Find the average annual stock returns of all the companies. Follow these steps:
 
-1. Median listings
-2. Median sales
-
-*Hint: If even a single value for `listings` or `sales` of a `city` is `NA`, the median of that variable will be `NA`. In order to avoid this, use `na.rm = TRUE` argument in `median()`. *
-
-Here I show first six rows of `housing_sum2` and all the columns:
-
-```{r}
-
-
-```
-
-Merge `housing_sum2` into `housing_1` and save a new data frame `housing_2`.
-
-Here I show first six rows of `housing_2` and some of the columns:
+1. Arrange the data set by `conm` and `datadate`.
+2. Group by `conm`
+3. Calculate stock return `stk_ret` by taking the difference between `prcc_f` and its lag and then divide the difference by the lag of `prcc_f`.
+4. Summarize to get the mean of the stock returns `stk_ret_mean`.
+5. Display the average stock returns in percentage format. 
 
 ```{r}
 
 ```
-
 
 ### Q8
 
-Modify `housing_2` from Q7 to add these indicator variables (also called dummy variables):
+In many statistical and machine learning applications, we use scaled variables instead of the original variables. A scaled variable is typically created by subtracting the sample mean of the variable from the variable and dividing it by its standard deviation. There is a `scale()` function in base R which can directly do it. 
 
-1. `listings_ind` - If a city's `listings` is less than or equal to the median listings for that `year` and `month` across all the cities, the value should be `0` else it should be `1`.
+You want to create a scaled variable for `sale` but separately for each company. Therefore, you can't use the mean and standard deviation of `sale` for the entire sample. Instead, you have to calculate these statistics for each company separately and then create a scaled variable. Follow these steps:
 
-2. `sales_ind` - If a city's `sales` is less than or equal to the median sales for that `year` and `month` across all the cities, the value should be `0` else it should be `1`.
+1. Group by `conm`
+2. Summarize `sale` to get the mean (`sale_mean`) and the standard deviation (`sale_sd`)
+3. Assign this data frame to `d3_sum`
+4. Join `d3` and `d3_sum` by `conm`
+5. Create `sale_scaled` by subtracting `sale_mean` from `sale` and dividing this difference by `sale_sd`
 
-*Hint: This can be achieved using `ifelse()` function from R along with `mutate()` from `dplyr`*
-
-Here I show first six rows of `housing_2` and some of the columns:
-
-```{r}
-
-
-```
-
-
-
-### Q9
-
-Using `housing_2` from Q8, add a new variable `market_hotness` as follows:
-
+Print the first 10 rows for Twitter with `conm`, `sale`, `sale_scaled`, `sale_mean`, and `sale_sd` using `as.data.frame()`
 
 ```{r}
-
-
+  
 ```
 
-Here I show first six rows of `housing_2` and some of the columns:
-
-```{r}
-
-```
-
-### Q10
-
-
-Which city has the highest *average* `median_adj` sale price and what is that price?
-
-```{r}
-
-```
-
-
-
-<br>
-<br>
-<br>
 
 <hr style="border: 2px solid#5b9aa0;" />
 
